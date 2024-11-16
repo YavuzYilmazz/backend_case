@@ -1,8 +1,30 @@
+from django.contrib.auth import authenticate, login
+from django.shortcuts import redirect
+from django.contrib.auth.views import LoginView
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from .models import Parca, Ucak, Takim, Personel, UcakParca
 from .serializers import ParcaSerializer, UcakSerializer, TakimSerializer, PersonelSerializer
 
+
+class SimpleLoginView(LoginView):
+    """
+    Overrides the default LoginView to remove authentication restrictions.
+    """
+    def form_valid(self, form):
+        # Authenticate the user without additional restrictions
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+
+        # Authenticate the user (this checks username/password correctness)
+        user = authenticate(self.request, username=username, password=password)
+
+        if user is not None:
+            login(self.request, user)
+            return redirect('/')  # Redirect after successful login
+        else:
+            form.add_error(None, "Invalid credentials")
+            return self.form_invalid(form)
 
 class ParcaViewSet(viewsets.ModelViewSet):
     """
@@ -52,14 +74,13 @@ class TakimViewSet(viewsets.ModelViewSet):
     """
     queryset = Takim.objects.all()
     serializer_class = TakimSerializer
-
-
 class PersonelViewSet(viewsets.ModelViewSet):
     """
     Handles CRUD operations for 'Personel' model and validates team assignments.
     """
     queryset = Personel.objects.all()
     serializer_class = PersonelSerializer
+    print("PersonelViewSet")
 
     def create(self, request, *args, **kwargs):
         """
@@ -67,16 +88,25 @@ class PersonelViewSet(viewsets.ModelViewSet):
         """
         data = request.data
         takim_tipi = data.get('takim_tipi', None)
+        password = data.get('password', None)
 
-        # Check if the provided team type exists
-        if takim_tipi and not Takim.objects.filter(isim=takim_tipi).exists():
+        # Check if the provided team type is valid (based on TAKIM_TIPLERI)
+        valid_team_types = [choice[0] for choice in Personel.TAKIM_TIPLERI]
+        if takim_tipi not in valid_team_types:
             return Response(
-                {"error": "Invalid team type."},
+                {"error": f"Invalid team type. Valid options are: {', '.join(valid_team_types)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return super().create(request, *args, **kwargs)
+        # Create the person and set hashed password
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        personel = serializer.save()
+        if password:
+            personel.set_password(password)  # Hash the password
+            personel.save()
 
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class MontajViewSet(viewsets.ViewSet):
     """

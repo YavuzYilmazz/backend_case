@@ -4,6 +4,9 @@ from .views import ParcaViewSet
 from .views import UcakViewSet
 from .views import TakimViewSet
 from .views import PersonelViewSet
+from .views import SimpleLoginView
+from django.contrib.auth.views import LoginView, LogoutView
+
 
 router = DefaultRouter()
 router.register(r'parcalar', ParcaViewSet)
@@ -14,4 +17,6 @@ router.register(r'personeller', PersonelViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('login/', SimpleLoginView.as_view(template_name='uretim/login.html'), name='login'),
+    path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
 ]
