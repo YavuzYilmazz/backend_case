@@ -143,7 +143,34 @@ class ParcaViewSet(viewsets.ModelViewSet):
         except Parca.DoesNotExist:
             return super().create(request, *args, **kwargs)
 
+    @action(detail=True, methods=['put'])
+    def update_stock(self, request, pk=None):
+        """
+        Reduces the stock of a part by 1 if it's not already zero.
+        """
+        parca = self.get_object()
+        user = request.user
 
+        # Kullanıcı sadece kendi takımına ait parçaları değiştirebilir
+        if user.takim_tipi != parca.tip:
+            return Response(
+                {"error": f"Sadece {user.takim_tipi} tipi parça stoklarını azaltabilirsiniz."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Stok azaltma işlemi
+        if parca.stok_adedi > 0:
+            parca.stok_adedi -= 1
+            parca.save()
+            return Response(
+                {"message": f"{parca.tip} parçasının stok miktarı azaltıldı. Kalan stok: {parca.stok_adedi}"},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"error": "Stok zaten sıfır, daha fazla azaltılamaz."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 class TakimViewSet(viewsets.ModelViewSet):
     """
     Handles CRUD operations for teams.

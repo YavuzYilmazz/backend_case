@@ -82,8 +82,7 @@
                         <td>{{ part.ucak_tipi }}</td>
                         <td>
                             {% if team_type != "MONTAJ" %}
-                            <button class="btn btn-danger delete-part" data-id="{{ part.id }}">Sil</button>
-                            {% endif %}
+                            <button class="btn btn-warning reduce-stock-btn" data-id="{{ part.id }}">Stok Azalt</button>                            {% endif %}
                         </td>
                     </tr>
                     {% endif %}
@@ -182,22 +181,24 @@
                 });
             });
 
-            // Parça Silme
-            $('.delete-part').on('click', function () {
-                const partId = $(this).data('id');
-                $.ajax({
-                    url: `/api/parcalar/${partId}/`,
-                    method: 'DELETE',
-                    data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
-                    success: function () {
-                        showAlert('Parça başarıyla silindi!', 'success');
-                        location.reload();
-                    },
-                    error: function (error) {
-                        showAlert('Bir hata oluştu: ' + error.responseJSON.error, 'danger');
-                    }
-                });
-            });
+            $(document).on('click', '.reduce-stock-btn', function () {
+    const partId = $(this).data('id');
+
+    $.ajax({
+        url: `/api/parcalar/${partId}/update_stock/`,
+        method: 'PUT',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'  // CSRF token doğrulama için
+        },
+        success: function (response) {
+            location.reload();  // Stok güncellendiğinde sayfa yenileniyor
+        },
+        error: function (error) {
+            const response = error.responseJSON;
+            alert(response.error || 'Bir hata oluştu.');
+        }
+    });
+});
 
             // Uçak Üretme
             $('#montajForm').on('submit', function (e) {
