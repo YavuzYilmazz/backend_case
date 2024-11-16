@@ -63,6 +63,7 @@ class Ucak(models.Model):
 
     isim = models.CharField(max_length=20, choices=UCUS_TIPLERI, null=True, blank=True)
     parcalar = models.ManyToManyField(Parca, through='UcakParca', blank=True)
+    stok_adedi = models.IntegerField(default=0, null=True, blank=True)
 
     def __str__(self):
         return self.isim
