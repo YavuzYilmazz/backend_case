@@ -1,227 +1,265 @@
 <!DOCTYPE html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <link
+    rel="stylesheet"
+    href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+  />
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1>Hoşgeldiniz, {{ user.username }}!</h1>
-            <a href="{% url 'login' %}" class="btn btn-danger">Çıkış Yap</a>
-        </div>
-        <h3>Takımınız: {{ team_type }}</h3>
+  <div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1>Hoşgeldiniz, {{ user.username }}!</h1>
+      <a href="{% url 'login' %}" class="btn btn-danger">Çıkış Yap</a>
+    </div>
+    <h3>Takımınız: {{ team_type }}</h3>
 
-        <!-- Uyarılar -->
-        <div id="alert-container" class="mt-3"></div>
+    <!-- Uyarılar -->
+    <div id="alert-container" class="mt-3"></div>
 
-        <!-- Eksik ve Stoğu Sıfır Olan Parçalar -->
-        {% if missing_parts %}
-        <div class="mt-3">
-            <h4>Eksik Parçalar</h4>
-            {% for ucak_tipi, missing in missing_parts.items %}
-            <div class="mt-2">
-                <h5>Uçak Tipi: {{ ucak_tipi }}</h5>
-                <div class="alert alert-danger">
-                    <h6>Eksik Parçalar:</h6>
-                    <ul>
-                        {% for part in missing %}
-                        <li>{{ part }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
+    <!-- Eksik ve Stoğu Sıfır Olan Parçalar -->
+    {% if missing_parts %}
+    <div class="mt-3">
+      <h4>Eksik Parçalar</h4>
+      {% for ucak_tipi, missing in missing_parts.items %}
+      <div class="mt-2">
+        <h5>Uçak Tipi: {{ ucak_tipi }}</h5>
+        <div class="alert alert-danger">
+          <h6>Eksik Parçalar:</h6>
+          <ul>
+            {% for part in missing %}
+            <li>{{ part }}</li>
             {% endfor %}
+          </ul>
         </div>
-        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
-        <!-- Parça Üret -->
-        {% if team_type != 'MONTAJ' %}
-        <div class="mt-3">
-            <h4>Parça Üret</h4>
-            <form id="parcaUretForm">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label for="tip">Parça Tipi:</label>
-                    <input type="text" class="form-control" id="tip" name="tip" required>
-                </div>
-                <div class="form-group">
-                    <label for="stok_adedi">Stok Adedi:</label>
-                    <input type="number" class="form-control" id="stok_adedi" name="stok_adedi" required>
-                </div>
-                <div class="form-group">
-                    <label for="ucak_tipi">Uçak Tipi:</label>
-                    <input type="text" class="form-control" id="ucak_tipi" name="ucak_tipi" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Parça Üret</button>
-            </form>
+    <!-- Parça Üret -->
+    {% if team_type != 'MONTAJ' %}
+    <div class="mt-3">
+      <h4>Parça Üret</h4>
+      <form id="parcaUretForm">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="tip">Parça Tipi:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="tip"
+            name="tip"
+            required
+          />
         </div>
-        {% endif %}
-
-        <!-- Mevcut Parçalar -->
-        <div class="mt-3">
-            <h4>Mevcut Parçalar</h4>
-            <table class="table table-striped" id="parcaTablo">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tip</th>
-                        <th>Stok Adedi</th>
-                        <th>Uçak Tipi</th>
-                        <th>Sil</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for part in all_parts %}
-                    {% if team_type == "MONTAJ" or part.tip == team_type %}
-                    <tr>
-                        <td>{{ part.id }}</td>
-                        <td>{{ part.tip }}</td>
-                        <td>{{ part.stok_adedi }}</td>
-                        <td>{{ part.ucak_tipi }}</td>
-                        <td>
-                            {% if team_type != "MONTAJ" %}
-                            <button class="btn btn-warning reduce-stock-btn" data-id="{{ part.id }}">Stok Azalt</button>                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="form-group">
+          <label for="stok_adedi">Stok Adedi:</label>
+          <input
+            type="number"
+            class="form-control"
+            id="stok_adedi"
+            name="stok_adedi"
+            required
+          />
         </div>
-
-        <!-- Uçak Üretme (Montaj Takımı İçin) -->
-        {% if team_type == 'MONTAJ' %}
-        <div class="mt-3">
-            <h4>Uçak Üret</h4>
-            <form id="montajForm">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label for="isim">Uçak Tipi:</label>
-                    <input type="text" class="form-control" id="isim" name="isim" required>
-                </div>
-                <div class="form-group">
-                    <label for="parcalar">Parça ID'leri (virgülle ayırın):</label>
-                    <input type="text" class="form-control" id="parcalar" name="parcalar" required>
-                </div>
-                <button type="submit" class="btn btn-success">Uçak Üret</button>
-            </form>
+        <div class="form-group">
+          <label for="ucak_tipi">Uçak Tipi:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="ucak_tipi"
+            name="ucak_tipi"
+            required
+          />
         </div>
+        <button type="submit" class="btn btn-primary">Parça Üret</button>
+      </form>
+    </div>
+    {% endif %}
 
-        <div class="mt-5">
-            <h4>Üretilen Uçaklar</h4>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>İsim</th>
-                        <th>Stok Adedi</th>
-                        <th>Parçalar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ucak in ucaklar %}
-                    <tr>
-                        <td>{{ ucak.id }}</td>
-                        <td>{{ ucak.isim }}</td>
-                        <td>{{ ucak.stok_adedi }}</td>
-                        <td>
-                            {% if ucak.parcalar.all %}
-                            <ul>
-                                {% for parca in ucak.parcalar.all %}
-                                <li>ID: {{ parca.id }} Tip: {{ parca.tip }}</li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <p>Bu uçak için parça bulunamadı.</p>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>        
-        {% endif %}
+    <!-- Mevcut Parçalar -->
+    <div class="mt-3">
+      <h4>Mevcut Parçalar</h4>
+      <table class="table table-striped" id="parcaTablo">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tip</th>
+            <th>Stok Adedi</th>
+            <th>Uçak Tipi</th>
+            <th>Sil</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for part in all_parts %} {% if team_type == "MONTAJ" or part.tip ==
+          team_type %}
+          <tr>
+            <td>{{ part.id }}</td>
+            <td>{{ part.tip }}</td>
+            <td>{{ part.stok_adedi }}</td>
+            <td>{{ part.ucak_tipi }}</td>
+            <td>
+              {% if team_type != "MONTAJ" %}
+              <button
+                class="btn btn-warning reduce-stock-btn"
+                data-id="{{ part.id }}"
+              >
+                Stok Azalt
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %} {% endfor %}
+        </tbody>
+      </table>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script>
-        $(document).ready(function () {
-            function showAlert(message, type) {
-                const alertHTML = `
+    <!-- Uçak Üretme (Montaj Takımı İçin) -->
+    {% if team_type == 'MONTAJ' %}
+    <div class="mt-3">
+      <h4>Uçak Üret</h4>
+      <form id="montajForm">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="isim">Uçak Tipi:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="isim"
+            name="isim"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="parcalar">Parça ID'leri (virgülle ayırın):</label>
+          <input
+            type="text"
+            class="form-control"
+            id="parcalar"
+            name="parcalar"
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-success">Uçak Üret</button>
+      </form>
+    </div>
+
+    <div class="mt-5">
+      <h4>Üretilen Uçaklar</h4>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>İsim</th>
+            <th>Stok Adedi</th>
+            <th>Parçalar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ucak in ucaklar %}
+          <tr>
+            <td>{{ ucak.id }}</td>
+            <td>{{ ucak.isim }}</td>
+            <td>{{ ucak.stok_adedi }}</td>
+            <td>
+              {% if ucak.parcalar.all %}
+              <ul>
+                {% for parca in ucak.parcalar.all %}
+                <li>ID: {{ parca.id }} Tip: {{ parca.tip }}</li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p>Bu uçak için parça bulunamadı.</p>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      function showAlert(message, type) {
+        const alertHTML = `
                     <div class="alert alert-${type} alert-dismissible fade show" role="alert">
                         ${message}
                     </div>
                 `;
-                $('#alert-container').html(alertHTML);
-            }
+        $("#alert-container").html(alertHTML);
+      }
 
-            // Parça Üretme
-            $('#parcaUretForm').on('submit', function (e) {
-                e.preventDefault();
-                const data = {
-                    tip: $('#tip').val(),
-                    stok_adedi: $('#stok_adedi').val(),
-                    ucak_tipi: $('#ucak_tipi').val(),
-                    csrfmiddlewaretoken: '{{ csrf_token }}'
-                };
+      // Parça Üretme
+      $("#parcaUretForm").on("submit", function (e) {
+        e.preventDefault();
+        const data = {
+          tip: $("#tip").val(),
+          stok_adedi: $("#stok_adedi").val(),
+          ucak_tipi: $("#ucak_tipi").val(),
+          csrfmiddlewaretoken: "{{ csrf_token }}",
+        };
 
-                $.ajax({
-                    url: '/api/parcalar/',
-                    method: 'POST',
-                    data: data,
-                    success: function (response) {
-                        showAlert('Parça başarıyla üretildi!', 'success');
-                        location.reload();
-                    },
-                    error: function (error) {
-                        showAlert('Bir hata oluştu: ' + error.responseJSON.error, 'danger');
-                    }
-                });
-            });
-
-            $(document).on('click', '.reduce-stock-btn', function () {
-    const partId = $(this).data('id');
-
-    $.ajax({
-        url: `/api/parcalar/${partId}/update_stock/`,
-        method: 'PUT',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'  // CSRF token doğrulama için
-        },
-        success: function (response) {
-            location.reload();  // Stok güncellendiğinde sayfa yenileniyor
-        },
-        error: function (error) {
-            const response = error.responseJSON;
-            alert(response.error || 'Bir hata oluştu.');
-        }
-    });
-});
-
-            // Uçak Üretme
-            $('#montajForm').on('submit', function (e) {
-                e.preventDefault();
-                const data = {
-                    isim: $('#isim').val(),
-                    parcalar: $('#parcalar').val().split(','), 
-                    csrfmiddlewaretoken: '{{ csrf_token }}'
-                };
-
-                $.ajax({
-                    url: '/api/ucaklar/',
-                    method: 'POST',
-                    data: data,
-                    success: function () {
-                        showAlert('Uçak başarıyla üretildi!', 'success');
-                        location.reload();
-                    },
-                    error: function (error) {
-                        showAlert('Bir hata oluştu.', 'danger');
-                    }
-                });
-            });
+        $.ajax({
+          url: "/api/parcalar/",
+          method: "POST",
+          data: data,
+          success: function (response) {
+            showAlert("Parça başarıyla üretildi!", "success");
+            location.reload();
+          },
+          error: function (error) {
+            showAlert("Bir hata oluştu: " + error.responseJSON.error, "danger");
+          },
         });
-    </script>
+      });
+
+      $(document).on("click", ".reduce-stock-btn", function () {
+        const partId = $(this).data("id");
+
+        $.ajax({
+          url: `/api/parcalar/${partId}/update_stock/`,
+          method: "PUT",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}", // CSRF token doğrulama için
+          },
+          success: function (response) {
+            location.reload(); // Stok güncellendiğinde sayfa yenileniyor
+          },
+          error: function (error) {
+            const response = error.responseJSON;
+            alert(response.error || "Bir hata oluştu.");
+          },
+        });
+      });
+
+      // Uçak Üretme
+      $("#montajForm").on("submit", function (e) {
+        e.preventDefault();
+        const data = {
+          isim: $("#isim").val(),
+          parcalar: $("#parcalar").val().split(","),
+          csrfmiddlewaretoken: "{{ csrf_token }}",
+        };
+
+        $.ajax({
+          url: "/api/ucaklar/",
+          method: "POST",
+          data: data,
+          success: function () {
+            showAlert("Uçak başarıyla üretildi!", "success");
+            location.reload();
+          },
+          error: function (error) {
+            showAlert("Bir hata oluştu.", "danger");
+          },
+        });
+      });
+    });
+  </script>
 </body>
