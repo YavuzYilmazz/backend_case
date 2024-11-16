@@ -7,13 +7,16 @@ from .models import Personel
 class ParcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Parca
-        fields = '__all__'
+        fields = ['id', 'tip', 'stok_adedi', 'ucak_tipi']
+
 
 
 class UcakSerializer(serializers.ModelSerializer):
+    parcalar = ParcaSerializer(many=True)
     class Meta:
         model = Ucak
-        fields = '__all__'
+        fields = ['id', 'isim', 'stok_adedi', 'parcalar']
+
 
 
 class TakimSerializer(serializers.ModelSerializer):

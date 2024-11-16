@@ -133,3 +133,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/parca-uret/'  # Giriş sonrası yönlendirme
 LOGOUT_REDIRECT_URL = '/login/'     # Çıkış sonrası yönlendirme
+LOGIN_REDIRECT_URL = '/dashboard/'

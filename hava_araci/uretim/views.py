@@ -1,185 +1,174 @@
 from django.contrib.auth import authenticate, login
-from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from rest_framework.decorators import action
 from django.contrib.auth.views import LoginView
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from .models import Parca, Ucak, Takim, Personel, UcakParca
 from .serializers import ParcaSerializer, UcakSerializer, TakimSerializer, PersonelSerializer
+@login_required
+def dashboard(request):
+    """
+    Dashboard for different team types.
+    """
+    user = request.user
+    team_type = user.takim_tipi
+    all_parts = Parca.objects.all()
 
+    # Montaj takımında olan kullanıcılar uçakları da görür
+    ucaklar = Ucak.objects.prefetch_related('parcalar') if team_type == "MONTAJ" else None
+
+    context = {
+        "team_type": team_type,
+        "all_parts": all_parts,
+        "ucaklar": ucaklar,
+    }
+    return render(request, "uretim/dashboard.html", context)
 
 class SimpleLoginView(LoginView):
     """
-    Overrides the default LoginView to remove authentication restrictions.
+    Custom login view to authenticate and redirect.
     """
     def form_valid(self, form):
-        # Authenticate the user without additional restrictions
-        username = form.cleaned_data.get('username')
-        password = form.cleaned_data.get('password')
-
-        # Authenticate the user (this checks username/password correctness)
-        user = authenticate(self.request, username=username, password=password)
-
-        if user is not None:
+        user = authenticate(
+            self.request,
+            username=form.cleaned_data.get("username"),
+            password=form.cleaned_data.get("password"),
+        )
+        if user:
             login(self.request, user)
-            return redirect('/')  # Redirect after successful login
+            return redirect("/dashboard")
         else:
             form.add_error(None, "Invalid credentials")
             return self.form_invalid(form)
 
+
+
+class PersonelViewSet(viewsets.ModelViewSet):
+    """
+    Handles CRUD operations for personnel.
+    """
+    queryset = Personel.objects.all()
+    serializer_class = PersonelSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Validates team type and creates personnel.
+        """
+        data = request.data
+        takim_tipi = data.get("takim_tipi")
+        password = data.get("password")
+
+        valid_team_types = [choice[0] for choice in Personel.TAKIM_TIPLERI]
+        if takim_tipi not in valid_team_types:
+            return Response(
+                {"error": f"Invalid team type. Valid options: {', '.join(valid_team_types)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        personel = serializer.save()
+        if password:
+            personel.set_password(password)
+            personel.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 class ParcaViewSet(viewsets.ModelViewSet):
     """
-    Handles CRUD operations for 'Parca' model and ensures that
-    parts are produced only by responsible teams.
+    Handles CRUD operations for parts.
     """
     queryset = Parca.objects.all()
     serializer_class = ParcaSerializer
 
     def create(self, request, *args, **kwargs):
         """
-        Validates if the team producing the part is responsible for the given part type.
+        Creates or updates a part.
         """
         data = request.data
-        parca_tipi = data.get('tip', None)
-        takim_id = data.get('takim_id', None)
+        tip = data.get("tip")
+        ucak_tipi = data.get("ucak_tipi")
+        stok_adedi = int(data.get("stok_adedi", 0))
 
-        # Check if the team is authorized to produce this part type
-        if takim_id:
-            try:
-                takim = Takim.objects.get(id=takim_id)
-                if takim.sorumlu_parca_tipi != parca_tipi:
-                    return Response(
-                        {"error": f"{takim.isim} cannot produce parts of type: {parca_tipi}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except Takim.DoesNotExist:
-                return Response(
-                    {"error": "Team does not exist."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        return super().create(request, *args, **kwargs)
-
-
-class UcakViewSet(viewsets.ModelViewSet):
-    """
-    Handles CRUD operations for 'Ucak' model.
-    """
-    queryset = Ucak.objects.all()
-    serializer_class = UcakSerializer
+        try:
+            existing_part = Parca.objects.get(tip=tip, ucak_tipi=ucak_tipi)
+            existing_part.stok_adedi += stok_adedi
+            existing_part.save()
+            serializer = self.get_serializer(existing_part)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Parca.DoesNotExist:
+            return super().create(request, *args, **kwargs)
 
 
 class TakimViewSet(viewsets.ModelViewSet):
     """
-    Handles CRUD operations for 'Takim' model.
+    Handles CRUD operations for teams.
     """
     queryset = Takim.objects.all()
     serializer_class = TakimSerializer
-class PersonelViewSet(viewsets.ModelViewSet):
+
+class UcakViewSet(viewsets.ModelViewSet):
     """
-    Handles CRUD operations for 'Personel' model and validates team assignments.
+    Handles CRUD operations for aircraft and assembly.
     """
-    queryset = Personel.objects.all()
-    serializer_class = PersonelSerializer
-    print("PersonelViewSet")
+    queryset = Ucak.objects.prefetch_related('parcalar')
+    serializer_class = UcakSerializer
 
     def create(self, request, *args, **kwargs):
         """
-        Validates if the team type provided for a person is valid.
+        Creates a new aircraft or updates stock if the same type already exists.
         """
         data = request.data
-        takim_tipi = data.get('takim_tipi', None)
-        password = data.get('password', None)
+        print("Gelen veri:", data)
+        ucak_tipi = data.get("isim")
+        parca_ids = [int(pid) for pid in data.getlist("parcalar[]")]
+        print("Parça ID'leri:", parca_ids)
 
-        # Check if the provided team type is valid (based on TAKIM_TIPLERI)
-        valid_team_types = [choice[0] for choice in Personel.TAKIM_TIPLERI]
-        if takim_tipi not in valid_team_types:
-            return Response(
-                {"error": f"Invalid team type. Valid options are: {', '.join(valid_team_types)}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        eksik_parcalar = []
+        selected_parts = []
 
-        # Create the person and set hashed password
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        personel = serializer.save()
-        if password:
-            personel.set_password(password)  # Hash the password
-            personel.save()
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-class MontajViewSet(viewsets.ViewSet):
-    """
-    Handles the assembly process where compatible parts are combined to produce an aircraft.
-    """
-    def create(self, request):
-        """
-        Produces an aircraft by combining compatible parts and deducting inventory.
-        """
-        data = request.data
-        ucak_tipi = data.get('isim', None)
-        parca_ids = data.get('parcalar', [])
-
-        # Check if all required parts are available
-        missing_parts = []
+        # Parça kontrolü
         for parca_id in parca_ids:
             try:
                 parca = Parca.objects.get(id=parca_id)
                 if parca.stok_adedi < 1:
-                    missing_parts.append(parca.tip)
+                    eksik_parcalar.append(parca.tip)
+                else:
+                    selected_parts.append(parca)
             except Parca.DoesNotExist:
                 return Response(
-                    {"error": f"Part with ID {parca_id} does not exist."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": f"Parça ID {parca_id} mevcut değil."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        if missing_parts:
+        if eksik_parcalar:
             return Response(
-                {"error": "Missing parts!", "missing_parts": missing_parts},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Eksik parçalar mevcut!", "missing_parts": eksik_parcalar},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Deduct stock and create the aircraft
-        for parca_id in parca_ids:
-            parca = Parca.objects.get(id=parca_id)
+        # Stok azalt
+        for parca in selected_parts:
             parca.stok_adedi -= 1
             parca.save()
 
-        ucak = Ucak.objects.create(isim=ucak_tipi, stok_adedi=1)
-        ucak.parcalar.set(parca_ids)
-        ucak.save()
-
-        return Response({"message": "Aircraft successfully produced!", "aircraft_id": ucak.id})
-
-
-class EnvanterViewSet(viewsets.ViewSet):
-    """
-    Lists all parts with insufficient stock.
-    """
-    def list(self, request):
-        """
-        Returns a list of parts where stock is less than or equal to zero.
-        """
-        insufficient_parts = Parca.objects.filter(stok_adedi__lte=0)
-        serializer = ParcaSerializer(insufficient_parts, many=True)
-        return Response(serializer.data)
-
-
-class RaporlamaViewSet(viewsets.ViewSet):
-    """
-    Generates reports on used parts and their associated aircraft.
-    """
-    def list(self, request):
-        """
-        Returns a detailed list of parts used and the aircraft they are associated with.
-        """
-        used_parts = UcakParca.objects.all()
-        data = [
-            {
-                "aircraft": part.ucak.isim,
-                "part": part.parca.tip,
-                "quantity": part.adet
-            }
-            for part in used_parts
-        ]
-        return Response(data)
+        # Aynı tip uçak varsa stok artır
+        try:
+            existing_aircraft = Ucak.objects.get(isim=ucak_tipi)
+            existing_aircraft.stok_adedi += 1
+            existing_aircraft.save()
+            existing_aircraft.parcalar.add(*selected_parts)  # Parçaları ekle
+            return Response(
+                {"message": f"{ucak_tipi} tipi uçak için stok artırıldı.", "aircraft_id": existing_aircraft.id},
+                status=status.HTTP_200_OK,
+            )
+        except Ucak.DoesNotExist:
+            # Yeni uçak oluştur
+            ucak = Ucak.objects.create(isim=ucak_tipi, stok_adedi=1)
+            ucak.parcalar.set(selected_parts)  # Parçaları ilişkilendir
+            return Response(
+                {"message": "Uçak başarıyla üretildi!", "aircraft_id": ucak.id},
+                status=status.HTTP_201_CREATED,
+            )
