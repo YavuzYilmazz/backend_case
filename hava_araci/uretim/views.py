@@ -1,3 +1,7 @@
-from django.shortcuts import render
+from rest_framework import viewsets
+from .models import Parca
+from .serializers import ParcaSerializer
 
-# Create your views here.
+class ParcaViewSet(viewsets.ModelViewSet):
+    queryset = Parca.objects.all()
+    serializer_class = ParcaSerializer
