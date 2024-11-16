@@ -17,13 +17,44 @@ def dashboard(request):
     team_type = user.takim_tipi
     all_parts = Parca.objects.all()
 
-    # Montaj takımında olan kullanıcılar uçakları da görür
+    # Montaj takımında olan kullanıcılar uçakları ve eksik parçaları görür
     ucaklar = Ucak.objects.prefetch_related('parcalar') if team_type == "MONTAJ" else None
+
+    # Tüm uçak tipleri ve parçaları için eksikleri kontrol et
+    required_parts = ["KANAT", "GOVDE", "AVIYONIK", "KUYRUK"]
+    missing_parts = {}  # Eksik parçalar (uçak tipine göre gruplandırılacak)
+
+    all_ucak_tipleri = {
+        "TB2": ["KANAT", "GOVDE", "KUYRUK", "AVIYONIK"],
+        "TB3": ["KANAT", "GOVDE", "KUYRUK", "AVIYONIK"],
+        "AKINCI": ["KANAT", "GOVDE", "KUYRUK", "AVIYONIK"],
+        "KIZILELMA": ["KANAT", "GOVDE", "KUYRUK", "AVIYONIK"],
+    }
+
+    for ucak_tipi in all_ucak_tipleri:
+        eksik_listesi = []
+
+        for part_type in required_parts:
+            # Stoğu sıfır olan veya hiç kaydı olmayan parçaları kontrol et
+            if not Parca.objects.filter(tip=part_type, ucak_tipi=ucak_tipi).exists():
+                # Hiç kaydı yoksa eksik parçalara ekle
+                eksik_listesi.append(part_type)
+            else:
+                # Stoğu sıfır olan parçaları kontrol et
+                zero_stock = Parca.objects.filter(tip=part_type, ucak_tipi=ucak_tipi, stok_adedi=0)
+                if zero_stock.exists():
+                    eksik_listesi.append(part_type)
+
+        if eksik_listesi:
+            # Sadece eksik parçası olan uçak tiplerini ekle
+            missing_parts[ucak_tipi] = eksik_listesi
+            print("Eksik parçalar:", ucak_tipi, eksik_listesi)
 
     context = {
         "team_type": team_type,
         "all_parts": all_parts,
         "ucaklar": ucaklar,
+        "missing_parts": missing_parts,
     }
     return render(request, "uretim/dashboard.html", context)
 

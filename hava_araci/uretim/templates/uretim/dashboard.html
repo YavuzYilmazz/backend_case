@@ -12,7 +12,33 @@
 
         <!-- Uyarılar -->
         <div id="alert-container" class="mt-3"></div>
+        <!-- Eksikler-->
+         <!-- Eksik ve Stoğu Sıfır Olan Parçalar -->
+{% if team_type == 'MONTAJ' %}
+<div class="mt-3">
+    <h4>Eksik Parçalar</h4>
 
+    {% if missing_parts %}
+        {% for ucak_tipi, missing in missing_parts.items %}
+        <div class="mt-2">
+            <h5>Uçak Tipi: {{ ucak_tipi }}</h5>
+
+            <div class="alert alert-danger">
+                <h6>Eksik Parçalar:</h6>
+                <ul>
+                    {% for part in missing %}
+                    <li>{{ part }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="alert alert-success">Tüm parçalar mevcut, eksik parça yok!</p>
+    {% endif %}
+</div>
+
+{% endif %}
         <!-- Parça Üret -->
         {% if team_type != 'MONTAJ' %}
         <div class="mt-3">
