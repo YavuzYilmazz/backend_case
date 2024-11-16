@@ -7,6 +7,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from .models import Parca, Ucak, Takim, Personel, UcakParca
 from .serializers import ParcaSerializer, UcakSerializer, TakimSerializer, PersonelSerializer
+
 @login_required
 def dashboard(request):
     """
@@ -26,6 +27,7 @@ def dashboard(request):
     }
     return render(request, "uretim/dashboard.html", context)
 
+
 class SimpleLoginView(LoginView):
     """
     Custom login view to authenticate and redirect.
@@ -42,7 +44,6 @@ class SimpleLoginView(LoginView):
         else:
             form.add_error(None, "Invalid credentials")
             return self.form_invalid(form)
-
 
 
 class PersonelViewSet(viewsets.ModelViewSet):
@@ -76,6 +77,7 @@ class PersonelViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+
 class ParcaViewSet(viewsets.ModelViewSet):
     """
     Handles CRUD operations for parts.
@@ -85,10 +87,19 @@ class ParcaViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Creates or updates a part.
+        Ensures that a team can only produce its responsible part type.
         """
         data = request.data
         tip = data.get("tip")
+        user = request.user
+
+        # Kullanıcının takım tipi kontrol ediliyor
+        if user.takim_tipi != tip:
+            return Response(
+                {"error": f"Sadece {user.takim_tipi} tipi parça üretebilirsiniz."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         ucak_tipi = data.get("ucak_tipi")
         stok_adedi = int(data.get("stok_adedi", 0))
 
@@ -108,7 +119,6 @@ class TakimViewSet(viewsets.ModelViewSet):
     """
     queryset = Takim.objects.all()
     serializer_class = TakimSerializer
-
 class UcakViewSet(viewsets.ModelViewSet):
     """
     Handles CRUD operations for aircraft and assembly.
@@ -126,26 +136,45 @@ class UcakViewSet(viewsets.ModelViewSet):
         parca_ids = [int(pid) for pid in data.getlist("parcalar[]")]
         print("Parça ID'leri:", parca_ids)
 
-        eksik_parcalar = []
+        # Gereken parçalar
+        gerekli_parcalar = ["KANAT", "GOVDE", "KUYRUK", "AVIYONIK"]
+
+        eksik_parcalar = set()  # Eksik parçalar için set
+        hatali_parcalar = set()  # Hatalı parçalar için set
+        mevcut_tipler = set()  # Mevcut parça tiplerini sakla
         selected_parts = []
 
         # Parça kontrolü
         for parca_id in parca_ids:
             try:
                 parca = Parca.objects.get(id=parca_id)
-                if parca.stok_adedi < 1:
-                    eksik_parcalar.append(parca.tip)
+                if parca.ucak_tipi != ucak_tipi:
+                    hatali_parcalar.add(parca.tip)
+                elif parca.stok_adedi < 1:
+                    # Hatalı olmayan ancak stoğu eksik olan parçalar
+                    if parca.tip not in hatali_parcalar:
+                        eksik_parcalar.add(parca.tip)
                 else:
                     selected_parts.append(parca)
+                    mevcut_tipler.add(parca.tip)
             except Parca.DoesNotExist:
                 return Response(
                     {"error": f"Parça ID {parca_id} mevcut değil."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        if eksik_parcalar:
+        # Eksik parçaları kontrol et (sadece hatalı olmayanları)
+        for gerekli_tip in gerekli_parcalar:
+            if gerekli_tip not in mevcut_tipler and gerekli_tip not in hatali_parcalar:
+                eksik_parcalar.add(gerekli_tip)
+
+        if eksik_parcalar or hatali_parcalar:
             return Response(
-                {"error": "Eksik parçalar mevcut!", "missing_parts": eksik_parcalar},
+                {
+                    "error": "Eksik veya hatalı parçalar mevcut!",
+                    "missing_parts": list(eksik_parcalar),
+                    "invalid_parts": list(hatali_parcalar),
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -159,7 +188,6 @@ class UcakViewSet(viewsets.ModelViewSet):
             existing_aircraft = Ucak.objects.get(isim=ucak_tipi)
             existing_aircraft.stok_adedi += 1
             existing_aircraft.save()
-            existing_aircraft.parcalar.add(*selected_parts)  # Parçaları ekle
             return Response(
                 {"message": f"{ucak_tipi} tipi uçak için stok artırıldı.", "aircraft_id": existing_aircraft.id},
                 status=status.HTTP_200_OK,

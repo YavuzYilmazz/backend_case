@@ -7,8 +7,8 @@
 </head>
 <body>
     <div class="container mt-5">
-        <h1>Welcome, {{ user.username }}!</h1>
-        <h3>Your Team: {{ team_type }}</h3>
+        <h1>Hoşgeldiniz,  {{ user.username }}!</h1>
+        <h3>Takımınız:  {{ team_type }}</h3>
 
         <!-- Parça Üret -->
         {% if team_type != 'MONTAJ' %}
@@ -155,18 +155,17 @@
                 });
             });
 
-            // Uçak Üretme
             $('#montajForm').on('submit', function (e) {
     e.preventDefault();
 
     const data = {
         isim: $('#isim').val(),
-        parcalar: $('#parcalar').val().split(','),  // Parça ID'lerini virgüle göre ayır ve liste yap
+        parcalar: $('#parcalar').val().split(','),  // Parça ID'lerini virgüle göre ayır
         csrfmiddlewaretoken: '{{ csrf_token }}'
     };
-    
+
     $.ajax({
-        url: '/api/ucaklar/',  // Uçak oluşturmak için doğru endpoint
+        url: '/api/ucaklar/',
         method: 'POST',
         data: data,
         success: function (response) {
@@ -174,7 +173,15 @@
             location.reload();
         },
         error: function (error) {
-            alert('Bir hata oluştu: ' + JSON.stringify(error.responseJSON));
+            const response = error.responseJSON;
+            let alertMessage = response.error || 'Bir hata oluştu.';
+            if (response.missing_parts) {
+                alertMessage += '\nEksik Parçalar: ' + response.missing_parts.join(', ');
+            }
+            if (response.invalid_parts) {
+                alertMessage += '\nHatalı Parçalar: ' + response.invalid_parts.join(', ');
+            }
+            alert(alertMessage);
         }
     });
 });
