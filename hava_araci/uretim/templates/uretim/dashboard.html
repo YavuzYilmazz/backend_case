@@ -95,28 +95,28 @@
           </tr>
         </thead>
         <tbody>
-          {% for part in all_parts %} {% if team_type == "MONTAJ" or part.tip ==
-          team_type %}
-          <tr>
-            <td>{{ part.id }}</td>
-            <td>{{ part.tip }}</td>
-            <td>{{ part.stok_adedi }}</td>
-            <td>{{ part.ucak_tipi }}</td>
-            <td>
-              {% if team_type != "MONTAJ" %}
-              <button
-                class="btn btn-warning reduce-stock-btn"
-                data-id="{{ part.id }}"
-              >
-                Stok Azalt
-              </button>
+            {% for part in all_parts %}
+              {% if team_type == "MONTAJ" or part.tip == team_type %}
+                <tr>
+                  <td>{{ part.id }}</td>
+                  <td>{{ part.tip }}</td>
+                  <td>{{ part.stok_adedi }}</td>
+                  <td>{{ part.ucak_tipi }}</td>
+                  <td>
+                    {% if team_type != "MONTAJ" %}
+                    <button
+                      class="btn btn-warning reduce-stock-btn"
+                      data-id="{{ part.id }}"
+                    >
+                      Stok Azalt
+                    </button>
+                    {% endif %}
+                  </td>
+                </tr>
               {% endif %}
-            </td>
-          </tr>
-          {% endif %} {% endfor %}
-        </tbody>
-      </table>
-    </div>
+            {% endfor %}
+          </tbody>
+          
 
     <!-- Aircraft creation form for the assembly team -->
     {% if team_type == 'MONTAJ' %}
