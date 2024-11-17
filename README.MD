@@ -115,7 +115,7 @@ hava_araci/
 ![Missing Parts Notification](images/errors2.png)
 
 ### Swagger
-![Swagger](images/swagger.png)
+![Swagger](images/swaggerr.png)
 
 ## Video Tutorial
 
