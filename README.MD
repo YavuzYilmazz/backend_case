@@ -42,7 +42,13 @@ python3 manage.py migrate
 ### 3. Start the Development Server
 Launch the local server to test the application:
 ```bash
-python manage.py runserver
+python3 manage.py runserver
+```
+
+### 3.1. Unit tests
+
+```bash
+python3 manage.py test
 ```
 
 ### 4. Access the Application
